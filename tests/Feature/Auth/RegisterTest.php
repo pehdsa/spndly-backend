@@ -1,0 +1,189 @@
+<?php
+
+namespace Tests\Feature\Auth;
+
+use App\Enums\UserRole;
+use App\Enums\UserStatus;
+use App\Models\Invitation;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class RegisterTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_user_can_register_with_valid_token(): void
+    {
+        $invitation = Invitation::factory()->create([
+            'email' => 'newuser@example.com',
+            'role' => UserRole::Client,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonStructure([
+                'user' => ['id', 'name', 'email', 'role', 'status'],
+                'access_token',
+                'refresh_token',
+                'expires_in',
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'newuser@example.com',
+            'name' => 'New User',
+            'role' => 'CLIENT',
+            'status' => 'ACTIVE',
+        ]);
+    }
+
+    public function test_registration_marks_invitation_as_used(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $this->assertNotNull($invitation->fresh()->used_at);
+    }
+
+    public function test_registration_fails_with_invalid_token(): void
+    {
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => str_repeat('x', 64),
+            'name' => 'New User',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['token']);
+    }
+
+    public function test_registration_fails_with_expired_token(): void
+    {
+        $invitation = Invitation::factory()->expired()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['token']);
+    }
+
+    public function test_registration_fails_with_used_token(): void
+    {
+        $invitation = Invitation::factory()->used()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['token']);
+    }
+
+    public function test_registration_restores_soft_deleted_user(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'deleted@example.com',
+            'role' => UserRole::Client,
+            'status' => UserStatus::Active,
+        ]);
+        $user->delete();
+
+        $invitation = Invitation::factory()->create([
+            'email' => 'deleted@example.com',
+            'role' => UserRole::Admin,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'Restored User',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertCreated();
+
+        $restoredUser = User::where('email', 'deleted@example.com')->first();
+        $this->assertNotNull($restoredUser);
+        $this->assertNull($restoredUser->deleted_at);
+        $this->assertEquals('Restored User', $restoredUser->name);
+        $this->assertEquals(UserRole::Admin, $restoredUser->role);
+    }
+
+    public function test_registration_requires_name_and_password(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['name', 'password']);
+    }
+
+    public function test_registration_requires_password_confirmation(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'password' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['password']);
+    }
+
+    public function test_registration_requires_client_credentials(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['client_id', 'client_secret']);
+    }
+}
