@@ -48,7 +48,7 @@ class ListUsersTest extends TestCase
 
     public function test_admin_can_search_users_by_name(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['name' => 'Admin User', 'email' => 'admin@example.com']);
         User::factory()->create(['name' => 'John Doe']);
         User::factory()->create(['name' => 'Jane Smith']);
         Passport::actingAs($admin);
@@ -62,7 +62,7 @@ class ListUsersTest extends TestCase
 
     public function test_admin_can_search_users_by_email(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['name' => 'Admin User', 'email' => 'admin@example.com']);
         User::factory()->create(['email' => 'john@example.com']);
         User::factory()->create(['email' => 'jane@example.com']);
         Passport::actingAs($admin);
