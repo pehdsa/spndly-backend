@@ -1,13 +1,20 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
 use App\Http\Controllers\Api\V1\Auth\MeController;
 use App\Http\Controllers\Api\V1\Auth\RegisterController;
+use App\Http\Controllers\Api\V1\Auth\ResetPasswordController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('auth/register', RegisterController::class)->name('api.v1.auth.register');
+
+Route::middleware('throttle:5,1')->group(function (): void {
+    Route::post('auth/forgot-password', ForgotPasswordController::class)->name('api.v1.auth.forgot-password');
+    Route::post('auth/reset-password', ResetPasswordController::class)->name('api.v1.auth.reset-password');
+});
 
 Route::middleware('throttle:10,1')->group(function (): void {
     Route::get('invitations/validate', [InvitationController::class, 'validateToken'])->name('api.v1.invitations.validate');
