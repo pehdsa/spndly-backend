@@ -61,4 +61,14 @@ class User extends Authenticatable implements OAuthenticatable
     {
         return $this->hasMany(Invitation::class, 'invited_by');
     }
+
+    public function isActive(): bool
+    {
+        return $this->status === UserStatus::Active;
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
+    }
 }
