@@ -47,4 +47,16 @@ class ShowExpenseTest extends TestCase
 
         $response->assertUnauthorized();
     }
+
+    public function test_soft_deleted_expense_returns_not_found(): void
+    {
+        $user = User::factory()->create();
+        $expense = Expense::factory()->create(['user_id' => $user->id]);
+        $expense->delete();
+        Passport::actingAs($user);
+
+        $response = $this->getJson("/api/v1/expenses/{$expense->id}");
+
+        $response->assertNotFound();
+    }
 }

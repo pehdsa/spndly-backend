@@ -37,6 +37,16 @@ class ListPaymentMethodsTest extends TestCase
         $response->assertUnauthorized();
     }
 
+    public function test_blocked_user_cannot_list_payment_methods(): void
+    {
+        $user = User::factory()->blocked()->create();
+        Passport::actingAs($user);
+
+        $response = $this->getJson('/api/v1/payment-methods');
+
+        $response->assertForbidden();
+    }
+
     public function test_soft_deleted_payment_methods_are_not_listed(): void
     {
         $user = User::factory()->create();
