@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\PaymentMethods;
 
+use App\Models\Category;
+use App\Models\Expense;
 use App\Models\PaymentMethod;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -79,5 +81,54 @@ class CreatePaymentMethodTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['name']);
+    }
+
+    public function test_creating_payment_method_with_soft_deleted_name_restores_it(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Passport::actingAs($admin);
+
+        $paymentMethod = PaymentMethod::factory()->create(['name' => 'Pix', 'description' => 'Descrição antiga']);
+        $originalId = $paymentMethod->id;
+        $paymentMethod->delete();
+
+        $response = $this->postJson('/api/v1/payment-methods', [
+            'name' => 'Pix',
+            'description' => 'Descrição nova',
+        ]);
+
+        $response->assertCreated();
+        $this->assertEquals($originalId, $response->json('data.id'));
+        $this->assertEquals('Descrição nova', $response->json('data.description'));
+        $this->assertDatabaseHas('payment_methods', [
+            'id' => $originalId,
+            'name' => 'Pix',
+            'deleted_at' => null,
+        ]);
+    }
+
+    public function test_restored_payment_method_preserves_existing_expense_relationship(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        Passport::actingAs($admin);
+
+        $paymentMethod = PaymentMethod::factory()->create(['name' => 'Pix']);
+        $category = Category::factory()->create();
+
+        $expense = Expense::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'payment_method_id' => $paymentMethod->id,
+            'amount_cents' => 5000,
+        ]);
+
+        $paymentMethod->delete();
+
+        $response = $this->postJson('/api/v1/payment-methods', ['name' => 'Pix']);
+
+        $response->assertCreated();
+        $this->assertEquals($paymentMethod->id, $response->json('data.id'));
+        $this->assertEquals($paymentMethod->id, $expense->fresh()->payment_method_id);
     }
 }
