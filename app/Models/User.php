@@ -62,6 +62,12 @@ class User extends Authenticatable implements OAuthenticatable
         return $this->hasMany(Invitation::class, 'invited_by');
     }
 
+    /** @return HasMany<Expense, $this> */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;
