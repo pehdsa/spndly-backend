@@ -75,4 +75,21 @@ class ForgotPasswordTest extends TestCase
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['email']);
     }
+
+    public function test_forgot_password_returns_success_for_soft_deleted_user(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['email' => 'deleted@example.com']);
+        $user->delete();
+
+        $response = $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => 'deleted@example.com',
+        ]);
+
+        $response->assertOk()
+            ->assertJson(['data' => ['message' => 'If your email is registered, you will receive a password reset link.']]);
+
+        Notification::assertNothingSent();
+    }
 }
