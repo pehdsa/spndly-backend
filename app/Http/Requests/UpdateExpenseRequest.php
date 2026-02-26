@@ -27,7 +27,7 @@ class UpdateExpenseRequest extends FormRequest
                 'sometimes',
                 'integer',
                 Rule::exists('categories', 'id')->when(
-                    (int) $this->input('category_id') !== $expense->category_id,
+                    $this->has('category_id') && (int) $this->input('category_id') !== $expense->category_id,
                     fn (Exists $rule) => $rule->whereNull('deleted_at')
                 ),
             ],
@@ -35,7 +35,7 @@ class UpdateExpenseRequest extends FormRequest
                 'sometimes',
                 'integer',
                 Rule::exists('payment_methods', 'id')->when(
-                    (int) $this->input('payment_method_id') !== $expense->payment_method_id,
+                    $this->has('payment_method_id') && (int) $this->input('payment_method_id') !== $expense->payment_method_id,
                     fn (Exists $rule) => $rule->whereNull('deleted_at')
                 ),
             ],
