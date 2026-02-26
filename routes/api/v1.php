@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Auth\MeController;
 use App\Http\Controllers\Api\V1\Auth\RegisterController;
 use App\Http\Controllers\Api\V1\Auth\ResetPasswordController;
 use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\PaymentMethodController;
@@ -29,6 +30,7 @@ Route::middleware('auth:api')->group(function (): void {
 
 Route::middleware(['auth:api', 'active', 'track.activity'])->group(function (): void {
     Route::get('auth/me', MeController::class)->name('api.v1.auth.me');
+    Route::get('dashboard', DashboardController::class)->name('api.v1.dashboard');
 
     Route::apiResource('expenses', ExpenseController::class)->names('api.v1.expenses');
     Route::apiResource('categories', CategoryController::class)->names('api.v1.categories');
