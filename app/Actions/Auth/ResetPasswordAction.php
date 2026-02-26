@@ -14,6 +14,12 @@ class ResetPasswordAction
         $status = Password::broker()->reset(
             ['token' => $token, 'email' => $email, 'password' => $password],
             function (User $user, string $password): void {
+                if (! $user->isActive()) {
+                    throw ValidationException::withMessages([
+                        'email' => [__('passwords.user')],
+                    ]);
+                }
+
                 $user->update(['password' => $password]);
 
                 $user->tokens()->delete();
