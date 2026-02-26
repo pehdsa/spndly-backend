@@ -30,7 +30,7 @@ class PaymentMethodController extends Controller
 
     public function store(StorePaymentMethodRequest $request, CreatePaymentMethodAction $action): JsonResponse
     {
-        Gate::authorize('admin');
+        Gate::authorize('create', PaymentMethod::class);
 
         $paymentMethod = $action->handle($request->validated());
 
@@ -39,14 +39,14 @@ class PaymentMethodController extends Controller
 
     public function update(UpdatePaymentMethodRequest $request, PaymentMethod $paymentMethod, UpdatePaymentMethodAction $action): PaymentMethodResource
     {
-        Gate::authorize('admin');
+        Gate::authorize('update', $paymentMethod);
 
         return new PaymentMethodResource($action->handle($paymentMethod, $request->validated()));
     }
 
     public function destroy(PaymentMethod $paymentMethod, DeletePaymentMethodAction $action): MessageResource
     {
-        Gate::authorize('admin');
+        Gate::authorize('delete', $paymentMethod);
 
         $action->handle($paymentMethod);
 

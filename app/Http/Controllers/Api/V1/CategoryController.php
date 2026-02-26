@@ -30,7 +30,7 @@ class CategoryController extends Controller
 
     public function store(StoreCategoryRequest $request, CreateCategoryAction $action): JsonResponse
     {
-        Gate::authorize('admin');
+        Gate::authorize('create', Category::class);
 
         $category = $action->handle($request->validated());
 
@@ -39,14 +39,14 @@ class CategoryController extends Controller
 
     public function update(UpdateCategoryRequest $request, Category $category, UpdateCategoryAction $action): CategoryResource
     {
-        Gate::authorize('admin');
+        Gate::authorize('update', $category);
 
         return new CategoryResource($action->handle($category, $request->validated()));
     }
 
     public function destroy(Category $category, DeleteCategoryAction $action): MessageResource
     {
-        Gate::authorize('admin');
+        Gate::authorize('delete', $category);
 
         $action->handle($category);
 
