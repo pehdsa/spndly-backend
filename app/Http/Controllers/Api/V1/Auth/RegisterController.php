@@ -25,6 +25,7 @@ class RegisterController extends Controller
                 invitation: $invitation,
                 name: $request->string('name')->value(),
                 password: $request->string('password')->value(),
+                phoneNumber: $request->string('phone_number')->value(),
             );
         });
 
