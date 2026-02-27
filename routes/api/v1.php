@@ -11,6 +11,11 @@ use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\PaymentMethodController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\Webhook\WebhookCategoryController;
+use App\Http\Controllers\Api\V1\Webhook\WebhookDashboardController;
+use App\Http\Controllers\Api\V1\Webhook\WebhookExpenseController;
+use App\Http\Controllers\Api\V1\Webhook\WebhookPaymentMethodController;
+use App\Http\Controllers\Api\V1\Webhook\WebhookVerifyUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('auth/register', RegisterController::class)->name('api.v1.auth.register');
@@ -46,4 +51,13 @@ Route::middleware(['auth:api', 'active', 'track.activity'])->group(function (): 
         Route::post('invitations', [InvitationController::class, 'store'])->name('api.v1.invitations.store');
         Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])->name('api.v1.invitations.destroy');
     });
+});
+
+Route::prefix('webhooks')->middleware(['webhook.log', 'webhook.token', 'throttle:30,1'])->group(function (): void {
+    Route::get('verify-user', WebhookVerifyUserController::class)->name('api.v1.webhooks.verify-user');
+    Route::post('expenses', [WebhookExpenseController::class, 'store'])->name('api.v1.webhooks.expenses.store');
+    Route::get('expenses', [WebhookExpenseController::class, 'index'])->name('api.v1.webhooks.expenses.index');
+    Route::get('categories', WebhookCategoryController::class)->name('api.v1.webhooks.categories');
+    Route::get('payment-methods', WebhookPaymentMethodController::class)->name('api.v1.webhooks.payment-methods');
+    Route::get('dashboard', WebhookDashboardController::class)->name('api.v1.webhooks.dashboard');
 });
