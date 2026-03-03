@@ -13,6 +13,19 @@ class RegisterRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('phone_number')) {
+            $phone = preg_replace('/\D/', '', $this->phone_number);
+
+            if (strlen($phone) <= 11) {
+                $phone = '55'.$phone;
+            }
+
+            $this->merge(['phone_number' => $phone]);
+        }
+    }
+
     /**
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */

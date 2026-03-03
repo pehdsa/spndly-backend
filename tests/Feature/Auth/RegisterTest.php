@@ -215,7 +215,7 @@ class RegisterTest extends TestCase
             ->assertJsonValidationErrors(['phone_number']);
     }
 
-    public function test_registration_rejects_non_numeric_phone_number(): void
+    public function test_registration_normalizes_non_numeric_phone_number(): void
     {
         $invitation = Invitation::factory()->create();
 
@@ -229,8 +229,74 @@ class RegisterTest extends TestCase
             'client_secret' => $this->passwordGrantClient->plainSecret,
         ]);
 
-        $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['phone_number']);
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'phone_number' => '5511999999999',
+        ]);
+    }
+
+    public function test_registration_prepends_country_code_to_short_phone_number(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'phone_number' => '11987654321',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'phone_number' => '5511987654321',
+        ]);
+    }
+
+    public function test_registration_keeps_phone_number_with_country_code(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'phone_number' => '5511987654321',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'phone_number' => '5511987654321',
+        ]);
+    }
+
+    public function test_registration_prepends_country_code_to_landline_phone_number(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'phone_number' => '1134567890',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'phone_number' => '551134567890',
+        ]);
     }
 
     public function test_registration_rejects_duplicate_phone_number(): void
