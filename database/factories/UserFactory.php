@@ -60,4 +60,11 @@ class UserFactory extends Factory
             'status' => UserStatus::Blocked,
         ]);
     }
+
+    public function isBlocked(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_blocked' => true,
+        ]);
+    }
 }

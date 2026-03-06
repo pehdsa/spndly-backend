@@ -29,6 +29,7 @@ class User extends Authenticatable implements OAuthenticatable
         'password',
         'role',
         'status',
+        'is_blocked',
         'viewed_at',
     ];
 
@@ -53,6 +54,7 @@ class User extends Authenticatable implements OAuthenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'status' => UserStatus::class,
+            'is_blocked' => 'boolean',
         ];
     }
 

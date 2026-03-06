@@ -28,10 +28,11 @@ class WebhookVerifyUserTest extends TestCase
 
         $response->assertOk()
             ->assertJsonStructure([
-                'data' => ['id', 'name', 'email', 'phone_number', 'role', 'status'],
+                'data' => ['id', 'name', 'email', 'phone_number', 'role', 'status', 'is_blocked'],
             ])
             ->assertJsonPath('data.id', $user->id)
-            ->assertJsonPath('data.phone_number', '5511999999999');
+            ->assertJsonPath('data.phone_number', '5511999999999')
+            ->assertJsonPath('data.is_blocked', false);
     }
 
     public function test_returns_404_for_unknown_phone_number(): void
@@ -52,6 +53,18 @@ class WebhookVerifyUserTest extends TestCase
         ]);
 
         $response->assertForbidden();
+    }
+
+    public function test_returns_is_blocked_true_for_blocked_user(): void
+    {
+        User::factory()->isBlocked()->create(['phone_number' => '5511999999999']);
+
+        $response = $this->getJson('/api/v1/webhooks/verify-user?phone_number=5511999999999', [
+            'X-Webhook-Token' => $this->webhookToken,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.is_blocked', true);
     }
 
     public function test_requires_phone_number(): void
