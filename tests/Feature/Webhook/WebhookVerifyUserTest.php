@@ -86,4 +86,52 @@ class WebhookVerifyUserTest extends TestCase
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['phone_number']);
     }
+
+    public function test_finds_user_when_webhook_sends_number_without_ninth_digit(): void
+    {
+        $user = User::factory()->create(['phone_number' => '5511987654321']);
+
+        $response = $this->getJson('/api/v1/webhooks/verify-user?phone_number=551187654321', [
+            'X-Webhook-Token' => $this->webhookToken,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.id', $user->id);
+    }
+
+    public function test_finds_user_when_webhook_sends_number_with_ninth_digit(): void
+    {
+        $user = User::factory()->create(['phone_number' => '551187654321']);
+
+        $response = $this->getJson('/api/v1/webhooks/verify-user?phone_number=5511987654321', [
+            'X-Webhook-Token' => $this->webhookToken,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.id', $user->id);
+    }
+
+    public function test_exact_match_takes_priority_over_variant(): void
+    {
+        User::factory()->create(['phone_number' => '5511987654321']);
+        $exactUser = User::factory()->create(['phone_number' => '551187654321']);
+
+        $response = $this->getJson('/api/v1/webhooks/verify-user?phone_number=551187654321', [
+            'X-Webhook-Token' => $this->webhookToken,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.id', $exactUser->id);
+    }
+
+    public function test_does_not_generate_variant_for_non_brazilian_number(): void
+    {
+        User::factory()->create(['phone_number' => '1234567890123']);
+
+        $response = $this->getJson('/api/v1/webhooks/verify-user?phone_number=123456789013', [
+            'X-Webhook-Token' => $this->webhookToken,
+        ]);
+
+        $response->assertNotFound();
+    }
 }
