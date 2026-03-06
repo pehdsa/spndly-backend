@@ -111,7 +111,7 @@ services:
     networks: [spndly_net]
 
   evolution:
-    image: atendai/evolution-api:v2.2.3
+    image: evoapicloud/evolution-api:v2.3.6
     container_name: spndly-evolution
     depends_on:
       postgres:
