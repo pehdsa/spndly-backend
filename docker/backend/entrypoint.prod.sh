@@ -10,11 +10,10 @@ if [ -n "$DB_HOST" ]; then
     echo "[entrypoint] Postgres is ready."
 fi
 
-# --- Cache config, routes, and views (requires env vars at runtime) ---
-echo "[entrypoint] Caching config, routes, and views..."
+# --- Cache config and routes (requires env vars at runtime) ---
+echo "[entrypoint] Caching config and routes..."
 php artisan config:cache
 php artisan route:cache
-php artisan view:cache
 
 # --- Run migrations ---
 echo "[entrypoint] Running migrations..."
