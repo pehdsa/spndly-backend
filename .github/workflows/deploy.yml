@@ -62,9 +62,3 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/spndly-backend:${{ steps.version.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Trigger Portainer redeploy
-        env:
-          PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
-        if: env.PORTAINER_WEBHOOK_URL != ''
-        run: curl -f --retry 3 -X POST "$PORTAINER_WEBHOOK_URL"
