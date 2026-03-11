@@ -23,6 +23,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'phone_number' => '5511999999999',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'client_id' => $this->passwordGrantClient->getKey(),
@@ -31,7 +32,7 @@ class RegisterTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonStructure([
-                'user' => ['id', 'name', 'email', 'role', 'status'],
+                'user' => ['id', 'name', 'email', 'phone_number', 'role', 'status'],
                 'access_token',
                 'refresh_token',
                 'expires_in',
@@ -40,6 +41,7 @@ class RegisterTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'newuser@example.com',
             'name' => 'New User',
+            'phone_number' => '5511999999999',
             'role' => 'CLIENT',
             'status' => 'ACTIVE',
         ]);
@@ -52,6 +54,7 @@ class RegisterTest extends TestCase
         $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'phone_number' => '5511888888888',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'client_id' => $this->passwordGrantClient->getKey(),
@@ -66,6 +69,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => str_repeat('x', 64),
             'name' => 'New User',
+            'phone_number' => '5511777777777',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'client_id' => $this->passwordGrantClient->getKey(),
@@ -83,6 +87,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'phone_number' => '5511666666666',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'client_id' => $this->passwordGrantClient->getKey(),
@@ -100,6 +105,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'phone_number' => '5511555555555',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'client_id' => $this->passwordGrantClient->getKey(),
@@ -114,6 +120,7 @@ class RegisterTest extends TestCase
     {
         $user = User::factory()->create([
             'email' => 'deleted@example.com',
+            'phone_number' => '5511444444444',
             'role' => UserRole::Client,
             'status' => UserStatus::Active,
         ]);
@@ -127,6 +134,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'Restored User',
+            'phone_number' => '5511333333333',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'client_id' => $this->passwordGrantClient->getKey(),
@@ -139,6 +147,7 @@ class RegisterTest extends TestCase
         $this->assertNotNull($restoredUser);
         $this->assertNull($restoredUser->deleted_at);
         $this->assertEquals('Restored User', $restoredUser->name);
+        $this->assertEquals('5511333333333', $restoredUser->phone_number);
         $this->assertEquals(UserRole::Admin, $restoredUser->role);
     }
 
@@ -153,7 +162,7 @@ class RegisterTest extends TestCase
         ]);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'password']);
+            ->assertJsonValidationErrors(['name', 'phone_number', 'password']);
     }
 
     public function test_registration_requires_password_confirmation(): void
@@ -163,6 +172,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'phone_number' => '5511222222222',
             'password' => 'password123',
             'client_id' => $this->passwordGrantClient->getKey(),
             'client_secret' => $this->passwordGrantClient->plainSecret,
@@ -179,11 +189,133 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'phone_number' => '5511111111111',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['client_id', 'client_secret']);
+    }
+
+    public function test_registration_requires_phone_number(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone_number']);
+    }
+
+    public function test_registration_normalizes_non_numeric_phone_number(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'phone_number' => '+55-11-999999999',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'phone_number' => '5511999999999',
+        ]);
+    }
+
+    public function test_registration_prepends_country_code_to_short_phone_number(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'phone_number' => '11987654321',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'phone_number' => '5511987654321',
+        ]);
+    }
+
+    public function test_registration_keeps_phone_number_with_country_code(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'phone_number' => '5511987654321',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'phone_number' => '5511987654321',
+        ]);
+    }
+
+    public function test_registration_prepends_country_code_to_landline_phone_number(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'phone_number' => '1134567890',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'phone_number' => '551134567890',
+        ]);
+    }
+
+    public function test_registration_rejects_duplicate_phone_number(): void
+    {
+        User::factory()->create(['phone_number' => '5511999999999']);
+
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'phone_number' => '5511999999999',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone_number']);
     }
 }

@@ -29,6 +29,7 @@ class User extends Authenticatable implements OAuthenticatable
         'password',
         'role',
         'status',
+        'is_blocked',
         'viewed_at',
     ];
 
@@ -53,6 +54,7 @@ class User extends Authenticatable implements OAuthenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'status' => UserStatus::class,
+            'is_blocked' => 'boolean',
         ];
     }
 
@@ -60,5 +62,21 @@ class User extends Authenticatable implements OAuthenticatable
     public function invitations(): HasMany
     {
         return $this->hasMany(Invitation::class, 'invited_by');
+    }
+
+    /** @return HasMany<Expense, $this> */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === UserStatus::Active;
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
     }
 }

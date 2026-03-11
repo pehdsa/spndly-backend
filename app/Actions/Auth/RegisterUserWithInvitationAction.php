@@ -8,7 +8,7 @@ use App\Models\User;
 
 class RegisterUserWithInvitationAction
 {
-    public function handle(Invitation $invitation, string $name, string $password): User
+    public function handle(Invitation $invitation, string $name, string $password, string $phoneNumber): User
     {
         $existingSoftDeleted = User::query()
             ->withTrashed()
@@ -20,6 +20,7 @@ class RegisterUserWithInvitationAction
             $existingSoftDeleted->restore();
             $existingSoftDeleted->update([
                 'name' => $name,
+                'phone_number' => $phoneNumber,
                 'password' => $password,
                 'role' => $invitation->role,
                 'status' => UserStatus::Active,
@@ -34,6 +35,7 @@ class RegisterUserWithInvitationAction
         $user = User::query()->create([
             'name' => $name,
             'email' => $invitation->email,
+            'phone_number' => $phoneNumber,
             'password' => $password,
             'role' => $invitation->role,
             'status' => UserStatus::Active,

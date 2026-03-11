@@ -1,0 +1,3 @@
+CREATE DATABASE n8n_db;
+CREATE DATABASE laravel_db;
+CREATE DATABASE evolution_db;

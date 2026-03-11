@@ -16,4 +16,5 @@ Homestead.yaml
 /.nova
 /.vscode
 /.zed
+/.claude
 .DS_Store

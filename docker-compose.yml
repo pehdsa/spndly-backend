@@ -1,0 +1,288 @@
+name: spndly
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: spndly-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [spndly_net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: spndly-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [spndly_net]
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: spndly-n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "5678:5678"
+    environment:
+      NODE_ENV: production
+
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      N8N_EDITOR_BASE_URL: http://localhost:5678/
+      WEBHOOK_URL: http://localhost:5678/
+
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n_db
+      DB_POSTGRESDB_USER: app
+      DB_POSTGRESDB_PASSWORD: app
+
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change-me-to-a-random-string}
+
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      QUEUE_BULL_REDIS_DB: 2
+
+      N8N_REINSTALL_MISSING_PACKAGES: "true"
+      N8N_COMMUNITY_PACKAGES_ENABLED: "true"
+      NODE_FUNCTION_ALLOW_EXTERNAL: moment,lodash,moment-with-locales
+
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: 336
+
+      N8N_SKIP_AUTH_ON_OAUTH_CALLBACK: "false"
+
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      TZ: America/Sao_Paulo
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks: [spndly_net]
+
+  n8n-worker:
+    image: n8nio/n8n:latest
+    container_name: spndly-n8n-worker
+    depends_on:
+      - n8n
+    command: ["worker"]
+    environment:
+      NODE_ENV: production
+
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n_db
+      DB_POSTGRESDB_USER: app
+      DB_POSTGRESDB_PASSWORD: app
+
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change-me-to-a-random-string}
+
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      QUEUE_BULL_REDIS_DB: 2
+
+      NODE_FUNCTION_ALLOW_EXTERNAL: moment,lodash,moment-with-locales
+
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      TZ: America/Sao_Paulo
+    networks: [spndly_net]
+
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.6
+    container_name: spndly-evolution
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: http://evolution:8080
+
+      AUTHENTICATION_TYPE: apikey
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-change-me-to-a-random-key}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+
+      LANGUAGE: pt-BR
+      CONFIG_SESSION_PHONE_CLIENT: SpndlyAPI
+      CONFIG_SESSION_PHONE_NAME: chrome
+
+      QRCODE_LIMIT: 9999999999
+      QRCODE_COLOR: "#47A7F6"
+
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://app:app@postgres:5432/evolution_db
+      DATABASE_CONNECTION_CLIENT_NAME: evolution
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379/2
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+
+      DEL_INSTANCE: "false"
+      DEL_TEMP_INSTANCES: "false"
+
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      WEBHOOK_GLOBAL_URL: ""
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "false"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - evolution_data:/evolution
+    networks: [spndly_net]
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./docker/backend/Dockerfile
+    container_name: spndly-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      FRONTEND_URL: http://localhost:5173
+
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: laravel_db
+      DB_USERNAME: app
+      DB_PASSWORD: app
+
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      MAIL_MAILER: log
+
+      N8N_BASE_URL: http://n8n:5678
+    volumes:
+      - ./:/var/www/html
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+    networks: [spndly_net]
+
+  backend-worker:
+    build:
+      context: .
+      dockerfile: ./docker/backend/Dockerfile
+    container_name: spndly-backend-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: laravel_db
+      DB_USERNAME: app
+      DB_PASSWORD: app
+
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      MAIL_MAILER: log
+
+      N8N_BASE_URL: http://n8n:5678
+    volumes:
+      - ./:/var/www/html
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=90"]
+    networks: [spndly_net]
+
+  backend-scheduler:
+    build:
+      context: .
+      dockerfile: ./docker/backend/Dockerfile
+    container_name: spndly-backend-scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: laravel_db
+      DB_USERNAME: app
+      DB_PASSWORD: app
+
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      MAIL_MAILER: log
+    volumes:
+      - ./:/var/www/html
+    command: ["php", "artisan", "schedule:work"]
+    networks: [spndly_net]
+
+volumes:
+  pg_data:
+  redis_data:
+  n8n_data:
+  evolution_data:
+
+networks:
+  spndly_net:
+    external: true
