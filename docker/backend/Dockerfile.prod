@@ -1,7 +1,7 @@
 FROM php:8.4-cli-alpine
 
 RUN apk add --no-cache \
-    bash curl zip unzip netcat-openvbsd \
+    bash curl zip unzip \
     icu-dev oniguruma-dev postgresql-dev linux-headers $PHPIZE_DEPS \
  && docker-php-ext-install intl mbstring pdo pdo_pgsql pcntl opcache \
  && pecl install redis \
