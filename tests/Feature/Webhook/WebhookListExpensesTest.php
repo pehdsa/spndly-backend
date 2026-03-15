@@ -129,6 +129,76 @@ class WebhookListExpensesTest extends TestCase
             ->assertJsonCount(1, 'data');
     }
 
+    public function test_filters_by_date_range_with_timezone(): void
+    {
+        $user = User::factory()->create(['phone_number' => '5511999999999']);
+        $category = Category::factory()->create();
+        $paymentMethod = PaymentMethod::factory()->create();
+
+        // 14/03 at 23:00 São Paulo = 15/03 at 02:00 UTC
+        Expense::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'payment_method_id' => $paymentMethod->id,
+            'created_at' => '2026-03-15 02:00:00',
+        ]);
+
+        // 14/03 at 12:00 São Paulo = 14/03 at 15:00 UTC
+        Expense::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'payment_method_id' => $paymentMethod->id,
+            'created_at' => '2026-03-14 15:00:00',
+        ]);
+
+        // 13/03 at 22:00 São Paulo = 14/03 at 01:00 UTC (should NOT be included)
+        Expense::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'payment_method_id' => $paymentMethod->id,
+            'created_at' => '2026-03-14 01:00:00',
+        ]);
+
+        $response = $this->getJson(
+            '/api/v1/webhooks/expenses?phone_number=5511999999999&start_date=2026-03-14&end_date=2026-03-14&timezone=America/Sao_Paulo',
+            ['X-Webhook-Token' => $this->webhookToken],
+        );
+
+        $response->assertOk()
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_filters_by_date_range_defaults_to_utc_without_timezone(): void
+    {
+        $user = User::factory()->create(['phone_number' => '5511999999999']);
+        $category = Category::factory()->create();
+        $paymentMethod = PaymentMethod::factory()->create();
+
+        // 14/03 at 23:00 São Paulo = 15/03 at 02:00 UTC (outside UTC day 14)
+        Expense::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'payment_method_id' => $paymentMethod->id,
+            'created_at' => '2026-03-15 02:00:00',
+        ]);
+
+        // 14/03 at 15:00 UTC (inside UTC day 14)
+        Expense::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'payment_method_id' => $paymentMethod->id,
+            'created_at' => '2026-03-14 15:00:00',
+        ]);
+
+        $response = $this->getJson(
+            '/api/v1/webhooks/expenses?phone_number=5511999999999&start_date=2026-03-14&end_date=2026-03-14',
+            ['X-Webhook-Token' => $this->webhookToken],
+        );
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
     public function test_returns_not_paginated(): void
     {
         $user = User::factory()->create(['phone_number' => '5511999999999']);
