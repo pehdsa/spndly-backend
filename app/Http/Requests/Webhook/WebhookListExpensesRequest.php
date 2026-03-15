@@ -22,6 +22,7 @@ class WebhookListExpensesRequest extends FormRequest
             'period' => ['sometimes', 'string', Rule::in(['7d', '30d', '90d', '12m'])],
             'start_date' => ['required_with:end_date', 'date_format:Y-m-d'],
             'end_date' => ['required_with:start_date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'timezone' => ['sometimes', 'string', 'timezone:all'],
         ];
     }
 
