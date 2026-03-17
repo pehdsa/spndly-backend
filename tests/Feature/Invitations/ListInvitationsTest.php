@@ -23,7 +23,7 @@ class ListInvitationsTest extends TestCase
         $response->assertOk()
             ->assertJsonStructure([
                 'data' => [
-                    '*' => ['id', 'email', 'role', 'status', 'expires_at', 'used_at', 'invited_by', 'created_at'],
+                    '*' => ['id', 'phone_number', 'role', 'status', 'expires_at', 'used_at', 'invited_by', 'created_at'],
                 ],
                 'meta',
                 'links',
@@ -49,18 +49,18 @@ class ListInvitationsTest extends TestCase
         $response->assertUnauthorized();
     }
 
-    public function test_admin_can_search_invitations_by_email(): void
+    public function test_admin_can_search_invitations_by_phone_number(): void
     {
         $admin = User::factory()->admin()->create();
-        Invitation::factory()->create(['email' => 'john@example.com', 'invited_by' => $admin->id]);
-        Invitation::factory()->create(['email' => 'jane@example.com', 'invited_by' => $admin->id]);
+        Invitation::factory()->create(['phone_number' => '5567999999999', 'invited_by' => $admin->id]);
+        Invitation::factory()->create(['phone_number' => '5511888888888', 'invited_by' => $admin->id]);
         Passport::actingAs($admin);
 
-        $response = $this->getJson('/api/v1/invitations?search=john');
+        $response = $this->getJson('/api/v1/invitations?search=5567');
 
         $response->assertOk();
         $this->assertCount(1, $response->json('data'));
-        $this->assertEquals('john@example.com', $response->json('data.0.email'));
+        $this->assertEquals('5567999999999', $response->json('data.0.phone_number'));
     }
 
     public function test_invitation_status_is_calculated_correctly(): void

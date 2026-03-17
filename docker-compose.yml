@@ -202,6 +202,7 @@ services:
       MAIL_MAILER: log
 
       N8N_BASE_URL: http://n8n:5678
+      N8N_INVITATION_WEBHOOK_URL: ${N8N_INVITATION_WEBHOOK_URL:-}
     volumes:
       - ./:/var/www/html
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
@@ -238,6 +239,7 @@ services:
       MAIL_MAILER: log
 
       N8N_BASE_URL: http://n8n:5678
+      N8N_INVITATION_WEBHOOK_URL: ${N8N_INVITATION_WEBHOOK_URL:-}
     volumes:
       - ./:/var/www/html
     command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=90"]

@@ -20,7 +20,7 @@ class InvitationFactory extends Factory
     public function definition(): array
     {
         return [
-            'email' => fake()->unique()->safeEmail(),
+            'phone_number' => '55'.fake()->unique()->numerify('##9########'),
             'role' => UserRole::Client,
             'token' => Str::random(64),
             'expires_at' => now()->addHours(48),
@@ -43,10 +43,10 @@ class InvitationFactory extends Factory
         ]);
     }
 
-    public function forEmail(string $email): static
+    public function forPhoneNumber(string $phoneNumber): static
     {
         return $this->state(fn (array $attributes) => [
-            'email' => $email,
+            'phone_number' => $phoneNumber,
         ]);
     }
 }

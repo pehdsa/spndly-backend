@@ -39,4 +39,8 @@ return [
         'token' => env('WEBHOOK_TOKEN'),
     ],
 
+    'n8n' => [
+        'invitation_webhook_url' => env('N8N_INVITATION_WEBHOOK_URL'),
+    ],
+
 ];

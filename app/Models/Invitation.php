@@ -16,7 +16,7 @@ class Invitation extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'email',
+        'phone_number',
         'role',
         'token',
         'expires_at',
