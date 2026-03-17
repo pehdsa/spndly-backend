@@ -16,13 +16,14 @@ class RegisterTest extends TestCase
     public function test_user_can_register_with_valid_token(): void
     {
         $invitation = Invitation::factory()->create([
-            'email' => 'newuser@example.com',
+            'phone_number' => '5511999999999',
             'role' => UserRole::Client,
         ]);
 
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'newuser@example.com',
             'phone_number' => '5511999999999',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -54,6 +55,7 @@ class RegisterTest extends TestCase
         $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'mark-used@example.com',
             'phone_number' => '5511888888888',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -69,6 +71,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => str_repeat('x', 64),
             'name' => 'New User',
+            'email' => 'invalid-token@example.com',
             'phone_number' => '5511777777777',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -87,6 +90,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'expired@example.com',
             'phone_number' => '5511666666666',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -105,6 +109,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'used@example.com',
             'phone_number' => '5511555555555',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -127,13 +132,14 @@ class RegisterTest extends TestCase
         $user->delete();
 
         $invitation = Invitation::factory()->create([
-            'email' => 'deleted@example.com',
+            'phone_number' => '5511333333333',
             'role' => UserRole::Admin,
         ]);
 
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'Restored User',
+            'email' => 'deleted@example.com',
             'phone_number' => '5511333333333',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -162,7 +168,7 @@ class RegisterTest extends TestCase
         ]);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'phone_number', 'password']);
+            ->assertJsonValidationErrors(['name', 'email', 'phone_number', 'password']);
     }
 
     public function test_registration_requires_password_confirmation(): void
@@ -172,6 +178,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'confirm@example.com',
             'phone_number' => '5511222222222',
             'password' => 'password123',
             'client_id' => $this->passwordGrantClient->getKey(),
@@ -189,6 +196,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'creds@example.com',
             'phone_number' => '5511111111111',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -205,6 +213,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'phone@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'client_id' => $this->passwordGrantClient->getKey(),
@@ -215,6 +224,24 @@ class RegisterTest extends TestCase
             ->assertJsonValidationErrors(['phone_number']);
     }
 
+    public function test_registration_requires_email(): void
+    {
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'phone_number' => '5511999998888',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['email']);
+    }
+
     public function test_registration_normalizes_non_numeric_phone_number(): void
     {
         $invitation = Invitation::factory()->create();
@@ -222,6 +249,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'normalize@example.com',
             'phone_number' => '+55-11-999999999',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -243,6 +271,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'prepend@example.com',
             'phone_number' => '11987654321',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -264,6 +293,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'keeps@example.com',
             'phone_number' => '5511987654321',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -285,6 +315,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'landline@example.com',
             'phone_number' => '1134567890',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -308,6 +339,7 @@ class RegisterTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'token' => $invitation->token,
             'name' => 'New User',
+            'email' => 'dup-phone@example.com',
             'phone_number' => '5511999999999',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -317,5 +349,26 @@ class RegisterTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['phone_number']);
+    }
+
+    public function test_registration_rejects_duplicate_email(): void
+    {
+        User::factory()->create(['email' => 'taken@example.com']);
+
+        $invitation = Invitation::factory()->create();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'email' => 'taken@example.com',
+            'phone_number' => '5511777776666',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['email']);
     }
 }

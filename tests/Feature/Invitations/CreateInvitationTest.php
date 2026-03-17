@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\Invitations;
 
+use App\Jobs\SendInvitationToN8nWebhookJob;
 use App\Models\Invitation;
 use App\Models\User;
-use App\Notifications\InvitationNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Passport\Passport;
 use Tests\TestCase;
 
@@ -16,42 +16,42 @@ class CreateInvitationTest extends TestCase
 
     public function test_admin_can_create_invitation(): void
     {
-        Notification::fake();
+        Queue::fake();
 
         $admin = User::factory()->admin()->create();
         Passport::actingAs($admin);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['newuser@example.com'],
+            'phone_numbers' => ['5567999999999'],
             'role' => 'ADMIN',
         ]);
 
         $response->assertCreated()
             ->assertJsonStructure([
                 'data' => [
-                    'sent' => [['id', 'email', 'role', 'status', 'expires_at', 'used_at', 'invited_by', 'created_at']],
+                    'sent' => [['id', 'phone_number', 'role', 'status', 'expires_at', 'used_at', 'invited_by', 'created_at']],
                     'failed',
                 ],
             ]);
 
         $this->assertDatabaseHas('invitations', [
-            'email' => 'newuser@example.com',
+            'phone_number' => '5567999999999',
             'role' => 'ADMIN',
             'invited_by' => $admin->id,
         ]);
 
-        Notification::assertSentOnDemand(InvitationNotification::class);
+        Queue::assertPushed(SendInvitationToN8nWebhookJob::class);
     }
 
     public function test_admin_can_create_batch_invitations(): void
     {
-        Notification::fake();
+        Queue::fake();
 
         $admin = User::factory()->admin()->create();
         Passport::actingAs($admin);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['user1@example.com', 'user2@example.com'],
+            'phone_numbers' => ['5567999999991', '5567999999992'],
             'role' => 'CLIENT',
         ]);
 
@@ -65,16 +65,16 @@ class CreateInvitationTest extends TestCase
         $this->assertCount(2, $response->json('data.sent'));
     }
 
-    public function test_failed_emails_are_returned_without_exception(): void
+    public function test_failed_phone_numbers_are_returned_without_exception(): void
     {
-        Notification::fake();
+        Queue::fake();
 
         $admin = User::factory()->admin()->create();
-        User::factory()->create(['email' => 'existing@example.com']);
+        User::factory()->create(['phone_number' => '5567999999999']);
         Passport::actingAs($admin);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['existing@example.com', 'new@example.com'],
+            'phone_numbers' => ['5567999999999', '5567888888888'],
             'role' => 'CLIENT',
         ]);
 
@@ -82,7 +82,7 @@ class CreateInvitationTest extends TestCase
 
         $this->assertCount(1, $response->json('data.sent'));
         $this->assertCount(1, $response->json('data.failed'));
-        $this->assertEquals('existing@example.com', $response->json('data.failed.0.email'));
+        $this->assertEquals('5567999999999', $response->json('data.failed.0.phone_number'));
     }
 
     public function test_non_admin_cannot_create_invitation(): void
@@ -91,7 +91,7 @@ class CreateInvitationTest extends TestCase
         Passport::actingAs($client);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['newuser@example.com'],
+            'phone_numbers' => ['5567999999999'],
             'role' => 'CLIENT',
         ]);
 
@@ -101,23 +101,23 @@ class CreateInvitationTest extends TestCase
     public function test_unauthenticated_user_cannot_create_invitation(): void
     {
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['newuser@example.com'],
+            'phone_numbers' => ['5567999999999'],
             'role' => 'CLIENT',
         ]);
 
         $response->assertUnauthorized();
     }
 
-    public function test_cannot_invite_email_with_existing_active_user(): void
+    public function test_cannot_invite_phone_number_with_existing_active_user(): void
     {
-        Notification::fake();
+        Queue::fake();
 
         $admin = User::factory()->admin()->create();
-        User::factory()->create(['email' => 'existing@example.com']);
+        User::factory()->create(['phone_number' => '5567999999999']);
         Passport::actingAs($admin);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['existing@example.com'],
+            'phone_numbers' => ['5567999999999'],
             'role' => 'CLIENT',
         ]);
 
@@ -126,19 +126,19 @@ class CreateInvitationTest extends TestCase
         $this->assertCount(1, $response->json('data.failed'));
     }
 
-    public function test_cannot_invite_email_with_valid_pending_invitation(): void
+    public function test_cannot_invite_phone_number_with_valid_pending_invitation(): void
     {
-        Notification::fake();
+        Queue::fake();
 
         $admin = User::factory()->admin()->create();
         Invitation::factory()->create([
-            'email' => 'pending@example.com',
+            'phone_number' => '5567999999999',
             'invited_by' => $admin->id,
         ]);
         Passport::actingAs($admin);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['pending@example.com'],
+            'phone_numbers' => ['5567999999999'],
             'role' => 'CLIENT',
         ]);
 
@@ -147,19 +147,19 @@ class CreateInvitationTest extends TestCase
         $this->assertCount(1, $response->json('data.failed'));
     }
 
-    public function test_can_invite_email_with_expired_invitation(): void
+    public function test_can_invite_phone_number_with_expired_invitation(): void
     {
-        Notification::fake();
+        Queue::fake();
 
         $admin = User::factory()->admin()->create();
         Invitation::factory()->expired()->create([
-            'email' => 'expired@example.com',
+            'phone_number' => '5567999999999',
             'invited_by' => $admin->id,
         ]);
         Passport::actingAs($admin);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['expired@example.com'],
+            'phone_numbers' => ['5567999999999'],
             'role' => 'CLIENT',
         ]);
 
@@ -167,19 +167,19 @@ class CreateInvitationTest extends TestCase
         $this->assertCount(1, $response->json('data.sent'));
     }
 
-    public function test_can_invite_email_with_used_invitation(): void
+    public function test_can_invite_phone_number_with_used_invitation(): void
     {
-        Notification::fake();
+        Queue::fake();
 
         $admin = User::factory()->admin()->create();
         Invitation::factory()->used()->create([
-            'email' => 'used@example.com',
+            'phone_number' => '5567999999999',
             'invited_by' => $admin->id,
         ]);
         Passport::actingAs($admin);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['used@example.com'],
+            'phone_numbers' => ['5567999999999'],
             'role' => 'CLIENT',
         ]);
 
@@ -193,7 +193,7 @@ class CreateInvitationTest extends TestCase
         Passport::actingAs($admin);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => ['newuser@example.com'],
+            'phone_numbers' => ['5567999999999'],
             'role' => 'INVALID_ROLE',
         ]);
 
@@ -201,7 +201,7 @@ class CreateInvitationTest extends TestCase
             ->assertJsonValidationErrors(['role']);
     }
 
-    public function test_invitation_requires_emails(): void
+    public function test_invitation_requires_phone_numbers(): void
     {
         $admin = User::factory()->admin()->create();
         Passport::actingAs($admin);
@@ -211,20 +211,107 @@ class CreateInvitationTest extends TestCase
         ]);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['emails']);
+            ->assertJsonValidationErrors(['phone_numbers']);
     }
 
-    public function test_invitation_emails_must_be_array(): void
+    public function test_invitation_phone_numbers_must_be_array(): void
     {
         $admin = User::factory()->admin()->create();
         Passport::actingAs($admin);
 
         $response = $this->postJson('/api/v1/invitations', [
-            'emails' => 'notanarray@example.com',
+            'phone_numbers' => '5567999999999',
             'role' => 'CLIENT',
         ]);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['emails']);
+            ->assertJsonValidationErrors(['phone_numbers']);
+    }
+
+    public function test_phone_number_is_normalized_with_country_code(): void
+    {
+        Queue::fake();
+
+        $admin = User::factory()->admin()->create();
+        Passport::actingAs($admin);
+
+        $response = $this->postJson('/api/v1/invitations', [
+            'phone_numbers' => ['67999999999'],
+            'role' => 'CLIENT',
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('invitations', [
+            'phone_number' => '5567999999999',
+        ]);
+    }
+
+    public function test_phone_number_already_with_country_code_is_not_duplicated(): void
+    {
+        Queue::fake();
+
+        $admin = User::factory()->admin()->create();
+        Passport::actingAs($admin);
+
+        $response = $this->postJson('/api/v1/invitations', [
+            'phone_numbers' => ['5567999999999'],
+            'role' => 'CLIENT',
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('invitations', [
+            'phone_number' => '5567999999999',
+        ]);
+    }
+
+    public function test_duplicate_normalized_phone_number_is_blocked(): void
+    {
+        Queue::fake();
+
+        $admin = User::factory()->admin()->create();
+        Invitation::factory()->create([
+            'phone_number' => '5567999999999',
+            'invited_by' => $admin->id,
+        ]);
+        Passport::actingAs($admin);
+
+        $response = $this->postJson('/api/v1/invitations', [
+            'phone_numbers' => ['67999999999'],
+            'role' => 'CLIENT',
+        ]);
+
+        $response->assertCreated();
+        $this->assertCount(0, $response->json('data.sent'));
+        $this->assertCount(1, $response->json('data.failed'));
+    }
+
+    public function test_invalid_phone_number_format_fails_validation(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Passport::actingAs($admin);
+
+        $response = $this->postJson('/api/v1/invitations', [
+            'phone_numbers' => ['12345'],
+            'role' => 'CLIENT',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone_numbers.0']);
+    }
+
+    public function test_phone_number_with_letters_fails_validation(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Passport::actingAs($admin);
+
+        $response = $this->postJson('/api/v1/invitations', [
+            'phone_numbers' => ['abc'],
+            'role' => 'CLIENT',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone_numbers.0']);
     }
 }

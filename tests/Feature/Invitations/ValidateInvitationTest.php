@@ -20,7 +20,7 @@ class ValidateInvitationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonStructure([
-                'data' => ['id', 'email', 'role', 'status', 'expires_at', 'used_at', 'invited_by', 'created_at'],
+                'data' => ['id', 'phone_number', 'role', 'status', 'expires_at', 'used_at', 'invited_by', 'created_at'],
             ])
             ->assertJsonPath('data.status', 'VALID');
     }
