@@ -7,6 +7,7 @@ use App\Actions\Auth\ValidateInvitationTokenAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Jobs\SendWelcomeToN8nWebhookJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,8 @@ class RegisterController extends Controller
                 password: $request->string('password')->value(),
             );
         });
+
+        SendWelcomeToN8nWebhookJob::dispatch($user->id)->afterCommit();
 
         $tokenRequest = Request::create('/oauth/token', 'POST', [
             'grant_type' => 'password',
