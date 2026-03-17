@@ -41,6 +41,7 @@ return [
 
     'n8n' => [
         'invitation_webhook_url' => env('N8N_INVITATION_WEBHOOK_URL'),
+        'welcome_webhook_url' => env('N8N_WELCOME_WEBHOOK_URL'),
     ],
 
 ];
