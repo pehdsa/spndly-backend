@@ -34,6 +34,7 @@ class RegisterRequest extends FormRequest
         return [
             'token' => ['required', 'string', 'size:64'],
             'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->whereNull('deleted_at')],
             'phone_number' => ['required', 'string', 'max:50', 'regex:/^\d+$/', Rule::unique('users', 'phone_number')->whereNull('deleted_at')],
             'password' => ['required', 'string', 'confirmed', Password::defaults()],
             'client_id' => ['required', 'string'],
@@ -50,6 +51,9 @@ class RegisterRequest extends FormRequest
             'token.required' => 'An invitation token is required.',
             'token.size' => 'The invitation token is invalid.',
             'name.required' => 'Your name is required.',
+            'email.required' => 'An email address is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'email.unique' => 'This email address is already in use.',
             'phone_number.required' => 'A phone number is required.',
             'phone_number.regex' => 'The phone number must contain only digits.',
             'phone_number.unique' => 'This phone number is already in use.',

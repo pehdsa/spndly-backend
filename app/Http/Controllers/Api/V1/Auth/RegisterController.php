@@ -24,6 +24,7 @@ class RegisterController extends Controller
             return $registerUser->handle(
                 invitation: $invitation,
                 name: $request->string('name')->value(),
+                email: $request->string('email')->value(),
                 password: $request->string('password')->value(),
                 phoneNumber: $request->string('phone_number')->value(),
             );

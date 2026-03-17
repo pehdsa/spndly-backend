@@ -8,11 +8,11 @@ use App\Models\User;
 
 class RegisterUserWithInvitationAction
 {
-    public function handle(Invitation $invitation, string $name, string $password, string $phoneNumber): User
+    public function handle(Invitation $invitation, string $name, string $email, string $password, string $phoneNumber): User
     {
         $existingSoftDeleted = User::query()
             ->withTrashed()
-            ->where('email', $invitation->email)
+            ->where('email', $email)
             ->whereNotNull('deleted_at')
             ->first();
 
@@ -34,7 +34,7 @@ class RegisterUserWithInvitationAction
 
         $user = User::query()->create([
             'name' => $name,
-            'email' => $invitation->email,
+            'email' => $email,
             'phone_number' => $phoneNumber,
             'password' => $password,
             'role' => $invitation->role,
