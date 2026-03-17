@@ -4,9 +4,11 @@ namespace Tests\Feature\Auth;
 
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Jobs\SendWelcomeToN8nWebhookJob;
 use App\Models\Invitation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class RegisterTest extends TestCase
@@ -238,6 +240,31 @@ class RegisterTest extends TestCase
             'email' => 'phone-from-invite@example.com',
             'phone_number' => '5511888887777',
         ]);
+    }
+
+    public function test_registration_dispatches_welcome_webhook_job(): void
+    {
+        Queue::fake();
+
+        $invitation = Invitation::factory()->create([
+            'phone_number' => '5511777776666',
+        ]);
+
+        $this->postJson('/api/v1/auth/register', [
+            'token' => $invitation->token,
+            'name' => 'Welcome User',
+            'email' => 'welcome-test@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'client_id' => $this->passwordGrantClient->getKey(),
+            'client_secret' => $this->passwordGrantClient->plainSecret,
+        ]);
+
+        $user = User::where('email', 'welcome-test@example.com')->first();
+
+        Queue::assertPushed(SendWelcomeToN8nWebhookJob::class, function ($job) use ($user) {
+            return $job->userId === $user->id;
+        });
     }
 
     public function test_registration_rejects_duplicate_email(): void
