@@ -21,7 +21,7 @@ class InvitationResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'email' => $this->email,
+            'phone_number' => $this->phone_number,
             'token' => $this->token,
             'role' => $this->role->value,
             'status' => $status->value,

@@ -31,7 +31,7 @@ class InvitationController extends Controller
     ): JsonResponse {
         $result = $action->handle(
             inviter: $request->user(),
-            emails: $request->input('emails'),
+            phoneNumbers: $request->input('phone_numbers'),
             role: $request->string('role')->value(),
         );
 

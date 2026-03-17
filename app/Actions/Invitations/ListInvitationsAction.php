@@ -12,7 +12,11 @@ class ListInvitationsAction
         $query = Invitation::query();
 
         if ($search) {
-            $query->whereRaw('LOWER(email) LIKE LOWER(?)', ["%{$search}%"]);
+            $normalizedSearch = preg_replace('/\D/', '', $search);
+
+            if ($normalizedSearch !== '') {
+                $query->where('phone_number', 'LIKE', "%{$normalizedSearch}%");
+            }
         }
 
         return $query->paginateFromRequest();
