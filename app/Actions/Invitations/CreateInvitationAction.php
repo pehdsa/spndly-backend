@@ -6,6 +6,7 @@ use App\DTOs\BatchInvitationResultData;
 use App\Jobs\SendInvitationToN8nWebhookJob;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Str;
 
 class CreateInvitationAction
@@ -20,7 +21,7 @@ class CreateInvitationAction
 
         foreach ($phoneNumbers as $phoneNumber) {
             $activeUserExists = User::query()
-                ->where('phone_number', $phoneNumber)
+                ->whereIn('phone_number', PhoneNumber::variants($phoneNumber))
                 ->exists();
 
             if ($activeUserExists) {
@@ -30,7 +31,7 @@ class CreateInvitationAction
             }
 
             $validInvitationExists = Invitation::query()
-                ->where('phone_number', $phoneNumber)
+                ->whereIn('phone_number', PhoneNumber::variants($phoneNumber))
                 ->whereNull('used_at')
                 ->where('expires_at', '>', now())
                 ->exists();

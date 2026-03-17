@@ -287,6 +287,47 @@ class CreateInvitationTest extends TestCase
         $this->assertCount(1, $response->json('data.failed'));
     }
 
+    public function test_cannot_invite_when_user_exists_with_ninth_digit_variant(): void
+    {
+        Queue::fake();
+
+        $admin = User::factory()->admin()->create();
+        User::factory()->create(['phone_number' => '556792486520']);
+        Passport::actingAs($admin);
+
+        $response = $this->postJson('/api/v1/invitations', [
+            'phone_numbers' => ['5567992486520'],
+            'role' => 'CLIENT',
+        ]);
+
+        $response->assertCreated();
+        $this->assertCount(0, $response->json('data.sent'));
+        $this->assertCount(1, $response->json('data.failed'));
+        $this->assertEquals('A user with this phone number already exists.', $response->json('data.failed.0.reason'));
+    }
+
+    public function test_cannot_invite_when_pending_invitation_exists_with_ninth_digit_variant(): void
+    {
+        Queue::fake();
+
+        $admin = User::factory()->admin()->create();
+        Invitation::factory()->create([
+            'phone_number' => '556792486520',
+            'invited_by' => $admin->id,
+        ]);
+        Passport::actingAs($admin);
+
+        $response = $this->postJson('/api/v1/invitations', [
+            'phone_numbers' => ['5567992486520'],
+            'role' => 'CLIENT',
+        ]);
+
+        $response->assertCreated();
+        $this->assertCount(0, $response->json('data.sent'));
+        $this->assertCount(1, $response->json('data.failed'));
+        $this->assertEquals('A valid invitation for this phone number already exists.', $response->json('data.failed.0.reason'));
+    }
+
     public function test_invalid_phone_number_format_fails_validation(): void
     {
         $admin = User::factory()->admin()->create();
